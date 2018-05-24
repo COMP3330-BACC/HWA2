@@ -1,0 +1,15 @@
+# Input image size [width, height]
+image: [150, 150]
+
+# Input data paths
+train_dir: ''
+valid_dir: ''
+
+# Input data sample size
+train_samples: 1000
+valid_samples: 400
+
+# Training parameters
+epochs: 1000
+batch_size: 16
+learning_rate: 0.001
