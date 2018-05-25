@@ -27,7 +27,7 @@ import os
 ## -------------------------------------
 ## Define config directory
 config_dir = os.path.join(
-    os.path.join('..', os.path.realpath(__file__)), 'config')
+    os.path.join('..', os.path.dirname(os.path.realpath(__file__))), 'config')
 
 ## -------------------------------------
 
@@ -44,7 +44,7 @@ def read_config(cfg_file):
 
 # Main function
 def main():
-    cfg = read_config(config_dir + 'key.yaml')
+    cfg = read_config(os.path.join(config_dir, 'key.yaml'))
     return 1
 
 
