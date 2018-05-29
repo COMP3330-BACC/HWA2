@@ -9,6 +9,9 @@ from keras.layers.merge import concatenate
 # Import tensorflow
 import tensorflow as tf
 
+# Import numpy
+import numpy as np
+
 # Import network config
 import net_cfg as n_cfg
 
@@ -291,10 +294,10 @@ class YoloV2:
 
         # Iterate through convolutional layers and designate weights
         for i in range(1, num_conv + 1):
-            conv_layer = model.get_layer('conv_' + str(i))
+            conv_layer = self.model.get_layer('conv_' + str(i))
 
             if i < num_conv:
-                norm_layer = model.get_layer('norm_' + str(i))
+                norm_layer = self.model.get_layer('norm_' + str(i))
 
                 size = np.prod(norm_layer.get_weights()[0].shape)
 
@@ -313,7 +316,7 @@ class YoloV2:
                 kernel = kernel.transpose([2, 3, 1, 0])
                 conv_layer.set_weights([kernel, bias])
             else:
-                kernel = wr.read(np.prod(conv_Layer.get_weights()[0].shape))
+                kernel = wr.read(np.prod(conv_layer.get_weights()[0].shape))
                 kernel = kernel.reshape(
                     list(reversed(conv_layer.get_weights()[0].shape)))
                 kernel = kernel.transpose([2, 3, 1, 0])
@@ -325,8 +328,9 @@ class YoloV2:
 
         # Randomize weights of the last convolutional layer
         new_kernel = np.random.normal(size=weights[0].shape) / (
-            GRID_H * GRID_W)
-        new_bias = np.random.normal(size=weights[1].shape) / (GRID_H * GRID_W)
+            n_cfg.GRID_H * n_cfg.GRID_W)
+        new_bias = np.random.normal(size=weights[1].shape) / (
+            n_cfg.GRID_H * n_cfg.GRID_W)
 
         layer.set_weights([new_kernel, new_bias])
 

@@ -31,6 +31,8 @@ from yolov2 import YoloV2
 ## -------------------------------------
 
 ## -------------------------------------
+## Define current working directory
+current_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 ## Define config directory
 config_dir = os.path.join(
     os.path.join('..', os.path.dirname(os.path.realpath(__file__))), 'config')
@@ -59,6 +61,10 @@ def main():
 
     # Output model summary to ensure we have a properly formed model
     model.summary()
+
+    # Try loading custom weights
+    yolo.load_weights(
+        os.path.join(os.path.join(current_dir, 'weights'), 'yolo.weights'))
 
     return 1
 
