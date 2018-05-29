@@ -1,0 +1,5 @@
+# Ignore compiled python scripts
+*.pyc
+
+# Ignore weights
+*.weights
