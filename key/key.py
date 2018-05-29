@@ -63,8 +63,16 @@ def main():
     model.summary()
 
     # Try loading custom weights
-    yolo.load_weights(
-        os.path.join(os.path.join(current_dir, 'weights'), 'yolo.weights'))
+    # yolo.load_weights(
+    #     os.path.join(os.path.join(current_dir, 'weights'), 'yolo.weights'))
+
+    # Load training data
+    # train_imgs, seen_train_labels = yolo.parse_anno(
+    #     cfg.train_anno_dir, cfg.train_raw_dir, labels=['key'])
+
+    # # Load validation data
+    # valid_imgs, seen_valid_labels = yolo.parse_anno(
+    #     cfg.valid_anno_dir, cfg.valid_raw_dir, labels=['key'])
 
     return 1
 
