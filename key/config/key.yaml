@@ -2,10 +2,10 @@
 image: [150, 150]
 
 # Input data paths
-train_raw_dir: ''
-train_anno_dir: ''
-valid_raw_dir: ''
-valid_anno_dir: ''
+train_raw_dir: 'data/train/img/'
+train_anno_dir: 'data/train/ann/'
+valid_raw_dir: 'data/valid/img/'
+valid_anno_dir: 'data/valid/ann/'
 
 # Input data sample size
 train_samples: 1000

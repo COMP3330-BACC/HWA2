@@ -60,19 +60,23 @@ def main():
     model = yolo.model()
 
     # Output model summary to ensure we have a properly formed model
-    model.summary()
+    #model.summary()
 
     # Try loading custom weights
-    # yolo.load_weights(
-    #     os.path.join(os.path.join(current_dir, 'weights'), 'yolo.weights'))
+    yolo.load_weights(
+        os.path.join(os.path.join(current_dir, 'data/weights'), 'yolo.weights'))
 
     # Load training data
-    # train_imgs, seen_train_labels = yolo.parse_anno(
-    #     cfg.train_anno_dir, cfg.train_raw_dir, labels=['key'])
+    train_anno_dir = cfg['train_anno_dir']
+    train_raw_dir = cfg['train_raw_dir']
+    train_imgs, seen_train_labels = yolo.parse_anno(
+        train_anno_dir, train_raw_dir, labels=['key'])
 
     # # Load validation data
-    # valid_imgs, seen_valid_labels = yolo.parse_anno(
-    #     cfg.valid_anno_dir, cfg.valid_raw_dir, labels=['key'])
+    valid_anno_dir = cfg['valid_anno_dir']
+    valid_raw_dir = cfg['valid_raw_dir']
+    valid_imgs, seen_valid_labels = yolo.parse_anno(
+        valid_anno_dir, valid_raw_dir, labels=['key'])
 
     return 1
 

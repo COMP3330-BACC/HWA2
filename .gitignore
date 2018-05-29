@@ -3,3 +3,5 @@
 
 # Ignore weights
 *.weights
+*.jpg
+*.xml

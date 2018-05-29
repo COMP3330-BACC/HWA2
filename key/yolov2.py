@@ -18,6 +18,8 @@ import xml.etree.ElementTree as ET
 # Import network config
 import net_cfg as n_cfg
 
+import os
+
 
 # Class for establishing a YOLO V2 network model
 # Based on work from github.com/experiencor/keras-yolo2
@@ -598,7 +600,15 @@ class YoloV2:
                 imgs += [img]
 
         return imgs, seen_labels
+    '''
+    def normalise(image):
+    	return image/255
 
+    def batch_setup(train_imgs, valid_imgs):
+    	train_batch = BatchGenerator(train_imgs, net_cfg.generator_config, norm=normalise)
+    	valid_batch = BatchGenerator(valid_imgs, net_cfg.generator_config, norm=normalise, jitter=False)
+    	return train_batch, valid_batch
+	'''
 
 # Weight reader for allowing weight file processing of Yolo V2 pretrained weights
 # Based on work from github.com/experiencor/keras-yolo2
