@@ -8,28 +8,26 @@
 ## -------------------------------------
 ## Import required packages
 # Keras
-from keras.applications.vgg19 import VGG19
-from keras.preprocessing.image import ImageDataGenerator
-from keras.applications.vgg19 import preprocess_input
-from keras.models import Sequential, Model
-from keras.layers import Activation, Conv2D, Dense, Dropout, Flatten, Input, MaxPooling2D
-from keras import backend as K
-from keras.preprocessing import image
-from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+from keras.applications.mobilenet import MobileNet, _depthwise_conv_block
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.layers import *
+from keras.models import *
+from keras.preprocessing.image import *
+from keras.utils import Sequence
 
-# h5py
-import h5py
 
 # Additional imports
-import matplotlib.pyplot as plt
-import numpy as np
-import yaml
+import csv
+import math
+import glob
 import os
 import cv2
+import numpy as np
+import re
+import xml.etree.ElementTree as ET
+import imgaug as ia
+from imgaug import augmenters as iaa
 
-# Import YOLO V2 network
-from yolov2 import YoloV2
 ## -------------------------------------
 
 ## -------------------------------------
@@ -41,6 +39,57 @@ config_dir = os.path.join(
 
 ## -------------------------------------
 
+class data_sequence(Sequence):
+	def __init__(self, csv_file, image_size, batch_size=32, feature_scaling = False):
+		self.csv_file = csv_file
+		with open(self.csv_file, "r") as file:
+			reader = csv.reader(file, delimiter=",")
+			arr = list(reader)
+		self.y = np.zeros((len(arr), 4))
+		self.x = []
+		self.image_size = image_size
+
+		for index, (path, class_id, width, height, x0, y0, x1, y1) in enumerate(arr):
+			width, height, x0, y0, x1, y1 = int(width), int(height), int(x0), int(y0), int(x1), int(y1)
+			mid_x = x0 + (x1 - x0) / 2
+			mid_y = y0 + (y1 - y0) / 2
+			self.y[index][0] = (mid_x / width) * IMAGE_SIZE
+			self.y[index][1] = (mid_y / height) * IMAGE_SIZE
+			self.y[index][2] = ((x1 - x0) / width) * IMAGE_SIZE
+			self.y[index][3] = ((y1 - y0) / height) * IMAGE_SIZE
+			self.x.append(path)
+
+		self.batch_size = batch_size
+		self.feature_scaling = feature_scaling
+		if self.feature_scaling:
+			dataset = self.__load_images(self.x)
+			broadcast_shape = [1, 1, 1]
+			broadcast_shape[2] = dataset.shape[3]
+
+			self.mean = np.mean(dataset, axis=(0, 1, 2))
+			self.mean = np.reshape(self.mean, broadcast_shape)
+			self.std = np.std(dataset, axis=(0, 1, 2))
+			self.std = np.reshape(self.std, broadcast_shape) + K.epsilon()
+
+	def __load_images(self, dataset):
+		out = []
+		for file_name in dataset:
+			im = cv2.resize(cv2.imread(file_name), (self.image_size, self.image_size))
+			out.append(im)
+		return np.array(out)
+
+	def __len__(self):
+		return math.ceil(len(self.x) / self.batch_size)
+
+	def __getitem__(self, idx):
+		batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+		batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+		images = self.__load_images(batch_x).astype('float32')
+		if self.feature_scaling:
+			images -= self.mean
+			images /= self.std
+		return images, batch_y
 
 # Get configuration values
 def read_config(cfg_file):
@@ -51,57 +100,49 @@ def read_config(cfg_file):
         print('[ERR] Failed to load config file \'{0}\''.format(cfg_file))
         exit()
 
-def train_model(yolo, model, train_batch, valid_batch):
-    early_stop = EarlyStopping(monitor='val_loss', min_delta=0.001, patience=3, mode='min', verbose=1)
-    checkpoint = ModelCheckpoint('weights_key.h5', monitor='val_loss', verbose=1, save_best_only=True, mode='min', period=1)
+#no clue how o interpret the xml to get all the good shit out of it :(
+def generate_sets(cfg):
+	t_out = cfg['train_output']
+	v_out = cfg['validation_output']
+	d_out = cfg['dictionary_output']
 
-    tb_counter = len([log for log in os.listdir(os.path.expanduser('logs/')) if 'key_' in log]) + 1
-    tensorboard = TensorBoard(log_dir=os.path.expanduser('logs/') + 'key_' + '_' + str(tb_counter), histogram_freq=0, write_graph=True, write_images=False)
+	with open(t_out, "w") as train, open(v_out, "w") as valid, open(d_out, "w") as dic:
+		writer_t = csv.writer(train, delimiter=",")
+		writer_v = csv.writer(valid, delimiter=",")
 
-    optimizer = Adam(lr=0.5e-4, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+		seen=[]
+		class_id = 0
+		for xml_file in sorted(glob.glob("{}/*xml".format(cfg['anno_folder']))):
+			tree = ET.parse(xml_file)
 
-    model.compile(loss=yolo.custom_loss, optimizer=optimizer)
+			filename = os.path.basename(xml_file).replace(".xml", "")
+			
 
-    model.fit_generator(generator           =   train_batch,
-                        steps_per_epoch     =   len(train_batch),
-                        epochs              =   100,
-                        verbose             =   1,
-                        validation_data     =   valid_batch,
-                        validation_steps    =   len(valid_batch),
-                        callbacks           =   [early_stop, checkpoint, tensorboard],
-                        max_queue_size      =   3)
+def create_model(cfg):
+	size = cfg['img_size']
+	alpha = cfg['alpha']
+
+	model_net = MobileNet(input_shape=(size[0], size[1], 3), include_top=False, alpha=alpha)
+	x = _depthwise_conv_block(model_net.layers[-1].output, 1024, alpha, 1, block_id=14)
+	x = MaxPooling2D(pool_size=(3, 3))(x)
+	x = Conv2D(4, kernel_size=(1, 1), padding="same")(x)
+	x = Reshape((4,))(x)
+
+	return Model(inputs=model_net.input, outputs=x)
+
+def train(cfg, model):
+	epochs = cfg['epochs']
+	img_size = cfg['img_size']
+	#do the rest
+
 
 # Main function
 def main():
     # Get config
     cfg = read_config(os.path.join(config_dir, 'key.yaml'))
+    generate_sets(cfg)
 
-    # Construct our model
-    yolo = YoloV2()
-    model = yolo.model()
-
-    # Output model summary to ensure we have a properly formed model
-    #model.summary()
-
-    # Try loading custom weights
-    yolo.load_weights(
-        os.path.join(os.path.join(current_dir, 'data/weights'), 'yolo.weights'))
-
-    # Load training data
-    train_anno_dir = cfg['train_anno_dir']
-    train_raw_dir = cfg['train_raw_dir']
-    train_imgs, seen_train_labels = yolo.parse_anno(
-        train_anno_dir, train_raw_dir, labels=['key'])
-
-    # # Load validation data
-    valid_anno_dir = cfg['valid_anno_dir']
-    valid_raw_dir = cfg['valid_raw_dir']
-    valid_imgs, seen_valid_labels = yolo.parse_anno(
-        valid_anno_dir, valid_raw_dir, labels=['key'])
-
-    train_batch, valid_batch = yolo.batch_setup(train_imgs, valid_imgs)
-
-    train_model(yolo, model, train_batch, valid_batch)
+    model = create_model(cfg)
 
     return 1
 
