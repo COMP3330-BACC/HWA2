@@ -115,6 +115,8 @@ TRUE_BOX_BUFFER = 50
 
 IOU_THRESH = 0.6
 
+MAX_BOX_PER_IMAGE = 5
+
 generator_config = {
     'IMAGE_H': IMAGE_H,
     'IMAGE_W': IMAGE_W,
