@@ -1,18 +1,21 @@
 #Directories, etc
-dataset_folder: 'data/dataset/'
+dataset_folder: 'data\dataset\'
 train_output: 'train.csv'
 validation_output: 'validation.csv'
 dictionary_output: 'dictionary.txt'
-anno_folder: 'data/anno/'
+anno_folder: 'data\anno\'
+classes: {
+  'key' : 1
+}
 
 #Dataset Variables
 split_ratio: 0.8
-max_classes: 1
+max_classes: 2
 
 aug: True
 aug_debug: False
 aug_per_img: 25
-aug_folder: 'data/aug/'
+aug_folder: 'data\aug\'
 
 #Training Variables
 alpha: 0.25
