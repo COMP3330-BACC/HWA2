@@ -36,58 +36,67 @@ current_dir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 config_dir = os.path.join(os.path.join('..', os.path.dirname(os.path.realpath(__file__))), 'config')
 
 ## -------------------------------------
+# couldnt figure out how to pass stuff into a class
+IMAGE_SIZE = 128
 
 class data_sequence(Sequence):
-    def __init__(self, csv_file, image_size, batch_size=32, feature_scaling=False):
-        self.csv_file = csv_file
-        with open(self.csv_file, "r") as file:
-            reader = csv.reader(file, delimiter=",")
-            arr = list(reader)
-        self.y = np.zeros((len(arr), 4))
-        self.x = []
-        self.image_size = image_size
+	def __init__(self, csv_file, image_size, batch_size=32, feature_scaling=False):
+		self.csv_file = csv_file
+		with open(self.csv_file, "r") as file:
+			reader = csv.reader(file, delimiter=",")
+			arr = list(reader)
+		self.y = np.zeros((len(arr), 4))
+		self.x = []
+		self.image_size = image_size
 
-        for index, (path, class_id, width, height, x0, y0, x1, y1) in enumerate(arr):
-            width, height, x0, y0, x1, y1 = int(width), int(height), int(x0), int(y0), int(x1), int(y1)
-            mid_x = x0 + (x1 - x0) / 2
-            mid_y = y0 + (y1 - y0) / 2
-            self.y[index][0] = (mid_x / width) * IMAGE_SIZE
-            self.y[index][1] = (mid_y / height) * IMAGE_SIZE
-            self.y[index][2] = ((x1 - x0) / width) * IMAGE_SIZE
-            self.y[index][3] = ((y1 - y0) / height) * IMAGE_SIZE
-            self.x.append(path)
+		for index, (path, class_id, width, height, x0, y0, x1, y1) in enumerate(arr):
+			width, height, x0, y0, x1, y1 = int(width), int(height), self.__conv_string_list(x0)[0], self.__conv_string_list(y0)[0], self.__conv_string_list(x1)[0], self.__conv_string_list(y1)[0]
+			mid_x = x0 + (x1 - x0) / 2
+			mid_y = y0 + (y1 - y0) / 2
+			self.y[index][0] = (mid_x / width) * IMAGE_SIZE
+			self.y[index][1] = (mid_y / height) * IMAGE_SIZE
+			self.y[index][2] = ((x1 - x0) / width) * IMAGE_SIZE
+			self.y[index][3] = ((y1 - y0) / height) * IMAGE_SIZE
+			self.x.append(path)
 
-        self.batch_size = batch_size
-        self.feature_scaling = feature_scaling
-        if self.feature_scaling:
-            dataset = self.__load_images(self.x)
-            broadcast_shape = [1, 1, 1]
-            broadcast_shape[2] = dataset.shape[3]
+		self.batch_size = batch_size
+		self.feature_scaling = feature_scaling
+		if self.feature_scaling:
+			dataset = self.__load_images(self.x)
+			broadcast_shape = [1, 1, 1]
+			broadcast_shape[2] = dataset.shape[3]
 
-            self.mean = np.mean(dataset, axis=(0, 1, 2))
-            self.mean = np.reshape(self.mean, broadcast_shape)
-            self.std = np.std(dataset, axis=(0, 1, 2))
-            self.std = np.reshape(self.std, broadcast_shape) + K.epsilon()
+			self.mean = np.mean(dataset, axis=(0, 1, 2))
+			self.mean = np.reshape(self.mean, broadcast_shape)
+			self.std = np.std(dataset, axis=(0, 1, 2))
+			self.std = np.reshape(self.std, broadcast_shape) + K.epsilon()
 
-    def __load_images(self, dataset):
-        out = []
-        for file_name in dataset:
-            im = cv2.resize(cv2.imread(file_name), (self.image_size, self.image_size))
-            out.append(im)
-        return np.array(out)
+	def __conv_string_list(self, x0):
+		x0 = x0.replace("[", "")
+		x0 = x0.replace("]", "")
+		x0 = x0.replace(",", "")
+		x0 = list(map(int, x0.split())) 
+		return x0
 
-    def __len__(self):
-        return math.ceil(len(self.x) / self.batch_size)
+	def __load_images(self, dataset):
+		out = []
+		for file_name in dataset:
+			im = cv2.resize(cv2.imread(file_name), (self.image_size, self.image_size))
+			out.append(im)
+		return np.array(out)
 
-    def __getitem__(self, idx):
-        batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
-        batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+	def __len__(self):
+		return math.ceil(len(self.x) / self.batch_size)
 
-        images = self.__load_images(batch_x).astype('float32')
-        if self.feature_scaling:
-            images -= self.mean
-            images /= self.std
-        return images, batch_y
+	def __getitem__(self, idx):
+		batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+		batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
+
+		images = self.__load_images(batch_x).astype('float32')
+		if self.feature_scaling:
+			images -= self.mean
+			images /= self.std
+		return images, batch_y
 
 # Get configuration values
 def read_config(cfg_file):
@@ -179,6 +188,7 @@ def generate_sets(cfg):
             # TODO: Check if this works, if not only support single bounding box
             row = [path, class_id_list, width, height, xmins, ymins, xmaxs, ymaxs]
             key.append(row)
+            print(row)
 
     print('Done! Training samples ({0}), validation samples ({1})'.format(train_size, valid_size))
 
@@ -197,15 +207,28 @@ def create_model(cfg):
 def train(cfg, model):
     epochs = cfg['epochs']
     img_size = cfg['img_size']
-    #do the rest
+    patience = cfg['patience']
+    
+    train_datagen = data_sequence("train.csv", img_size[0])
+    validation_datagen = data_sequence("validation.csv", image_size[0])
+
+    model.compile(loss="mean_squared_error", optimizer="adam", metrics=["accuracy"])
+
+    checkpoint = ModelCheckpoint("model-{val_acc:.2f}.h5", monitor="val_acc", verbose=1, save_best_only=True, save_weights_only=True, mode="auto", period=1)
+    stop = EarlyStopping(monitor="val_acc", patience=patience, mode="auto")
+
+    model.fit_generator(train_datagen, steps_per_epoch=1150, epochs=epochs, validation_data=validation_datagen, validation_steps=22, callbacks=[checkpoint, stop])
 
 # Main function
 def main():
     # Get config
     cfg = read_config(os.path.join(config_dir, 'key.yaml'))
-    generate_sets(cfg)
+    if cfg['gen_dataset'] == True:
+    	generate_sets(cfg)
 
-    model = create_model(cfg)
+    if cfg['train_model'] == True:
+    	model = create_model(cfg)
+    	train(cfg, model)
 
     return 1
 

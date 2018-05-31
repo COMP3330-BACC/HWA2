@@ -9,6 +9,7 @@ classes: {
 }
 
 #Dataset Variables
+gen_dataset: True
 split_ratio: 0.8
 max_classes: 2
 
@@ -18,6 +19,7 @@ aug_per_img: 25
 aug_folder: 'data\aug\'
 
 #Training Variables
+train_model: True
 alpha: 0.25
 img_size: [128, 128] #figure out dimensionality problems
 epochs: 5000
