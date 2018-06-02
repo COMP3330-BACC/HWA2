@@ -5,6 +5,7 @@
 *.weights
 *.jpg
 *.xml
+*.BRENTNALLTSGPC
 
 # Ignore learning folder (models and tfRecords)
 learning/*
