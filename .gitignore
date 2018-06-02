@@ -5,3 +5,6 @@
 *.weights
 *.jpg
 *.xml
+
+# Ignore learning folder (models and tfRecords)
+learning/*
