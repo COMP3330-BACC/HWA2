@@ -57,7 +57,7 @@ class data_sequence(Sequence):
             # ], self.__conv_string_list(y0)[0], self.__conv_string_list(x1)[0], self.__conv_string_list(y1)[0]
             width, height = int(width), int(height)
             x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
-
+            print(x0)
             mid_x = x0 + (x1 - x0) / 2
             mid_y = y0 + (y1 - y0) / 2
             self.y[index][0] = (mid_x / width) * IMAGE_SIZE
@@ -162,6 +162,7 @@ def generate_sets(cfg):
                 if len(seen) == len(xml_files):
                     break
                 dic.write("{}\n".format(name))
+                #
                 class_id += 1
                 key = []
 
