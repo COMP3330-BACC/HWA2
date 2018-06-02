@@ -1,0 +1,46 @@
+Arial
+Bahnschrift
+Baskerville Old Face
+Bell MT
+Bodoni MT
+Bookman Old Style
+Calibri
+Calisto MT
+Cambria
+Century
+Comic Sans MS
+Consolas
+Courier New
+Ebrima
+Franklin Gothic
+Gadugi
+Garamond
+Adobe Garamond
+Gill Sans MT
+Gloucester MT
+Imprint Shadow
+Javanese
+Juice
+Lato
+Letter Gothic Std
+Lucida Bright
+Maiandra GD
+Microsoft Himal
+Microsoft Tai Le
+Minion Pro
+MS Reference Sans Serif
+MS Sans Serif
+Myanmar Text
+Open Sans
+Orator Std
+Palatino Linotype
+Poor Richard
+Prestige Elite Std
+RockWell
+Segoe UI
+Sylfean
+Tahoma
+Times New Roman
+Trebuchet MS
+Tw Cen MT
+Verdana
