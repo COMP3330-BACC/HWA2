@@ -98,7 +98,7 @@ def main():
 	print(model.summary())
 	for layer in vgg_conv.layers:
 		print(layer, layer.trainable)
-
+	'''
 	t_start = time.time()
 	history = model.fit_generator(train_generator,
 						steps_per_epoch=t_samps//batch_size,
@@ -130,8 +130,8 @@ def main():
 	plt.legend(['train', 'val'], loc='upper right')
 	plt.show()
 	plt.close()
-	
-	#model.load_weights('VGG_pretrained_aug.h5')
+	'''
+	model.load_weights('VGG_pretrained_aug.h5')
 	plot_model(model, to_file='model_VGG.png')
 
 	plot_model(model, to_file='model_basic.png')
