@@ -1,0 +1,10 @@
+non aug non train: 1830.10
+aug non train: 1814.11
+
+aug non train: correct rate 80%
+
+
+pretrain non aug:
+"""" no freezing: 401.28 correct rate 100
+"""" 1 freezing: 455.29 correct 100
+"""" 3 freezing: 797.30 correct 90

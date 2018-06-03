@@ -1,8 +1,10 @@
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import keras
 import cv2
+import time
 
 from keras.models import Sequential
 from keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten, Activation
@@ -11,45 +13,30 @@ from keras import backend as K
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam
 from keras.models import load_model
-from keras.utils import plot_model
+from keras.utils import plot_model, to_categorical
+from keras.applications import VGG16
 
 os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
 
-def initialise_model(input_shape, classes):
+def initialise_model(input_shape, classes, base):
 	model = Sequential()
-	model.add(Conv2D(32, (3, 3), padding='same', activation='relu', input_shape=input_shape))
-	model.add(Conv2D(32, (3, 3), activation='relu'))
-	model.add(MaxPooling2D(pool_size=(2, 2)))
-	model.add(Dropout(0.25))
-
-	model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
-	model.add(Conv2D(64, (3, 3), activation='relu'))
-	model.add(MaxPooling2D(pool_size=(2, 2)))
-	model.add(Dropout(0.25))
-
-	model.add(Conv2D(64, (3, 3), padding='same', activation='relu'))
-	model.add(Conv2D(64, (3, 3), activation='relu'))
-	model.add(MaxPooling2D(pool_size=(2, 2)))
-	model.add(Dropout(0.25))
-
+	model.add(base)
 	model.add(Flatten())
-	model.add(Dense(512, activation='relu'))
+	model.add(Dense(512, activation='relu', input_dim=1*1*512))
 	model.add(Dropout(0.5))
-	model.add(Dense(classes, activation='softmax'))
-
+	model.add(Dense(10, activation='softmax'))
 	return model
-
 
 def main():
 	train_data = 'ArtificialDigits/ArtificialDigits/Dataset_Digits/Test'
 	valid_data = 'ArtificialDigits/ArtificialDigits/Dataset_Digits/Validate'
 	tester_data = 'ArtificialDigits/ArtificialDigits/Dataset_Digits/Tester'
-	height = 28
-	width = 28
+	height = 48
+	width = 48
 	t_samps = 700
 	t_valid = 140
-	epochs = 159
-	batch_size = 16
+	epochs = 35
+	batch_size = 20
 	classes = 10
 
 	if K.image_data_format() == 'channels_first':
@@ -57,12 +44,10 @@ def main():
 	else:
 		input_shape = (width, height, 3)
 
-	model = initialise_model(input_shape, classes)
-
-	ADAM = Adam(lr=0.0001)
-	model.compile(optimizer=ADAM, loss='categorical_crossentropy', metrics=['accuracy'])
-	#model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
-	model.summary()
+	vgg_conv = VGG16(
+					  weights=None,
+					  include_top=False,
+					  input_shape=input_shape)
 
 	train_dgen = ImageDataGenerator(
 		rescale = 1./2,
@@ -91,7 +76,7 @@ def main():
 		batch_size=batch_size,
 		class_mode='categorical')
 
-	valid_generator = test1_dgen.flow_from_directory(
+	valid_generator = test_dgen.flow_from_directory(
 		valid_data,
 		target_size=(width, height),
 		batch_size=batch_size,
@@ -104,16 +89,24 @@ def main():
 		class_mode='categorical',
 		shuffle=False)
 
-	
-	history = model.fit_generator(
-		train_generator,
-		steps_per_epoch=t_samps//batch_size,
-		epochs=epochs,
-		validation_data=valid_generator,
-		validation_steps=t_valid//batch_size)
+	model = initialise_model(input_shape, classes, vgg_conv)
+
+	ADAM = Adam(lr=0.0001)
+	model.compile(optimizer=ADAM, loss='categorical_crossentropy', metrics=['acc'])
+	print(model.summary())
 	'''
-	model.save_weights('first_crack.h5')
+	t_start = time.time()
+	history = model.fit_generator(train_generator,
+						steps_per_epoch=t_samps//batch_size,
+						epochs=epochs,
+						validation_data=valid_generator,
+						validation_steps=t_valid//batch_size)
+	t_elapsed = time.time() - t_start
+
+	print("Time: " + str(t_elapsed))
 	
+	model.save_weights('VGG_untrained_aug.h5')
+
 	# Accuracy and Validation Graphs
 	plt.rcParams['figure.figsize'] = (6,5)
 	plt.plot(history.history['acc'])
@@ -133,8 +126,11 @@ def main():
 	plt.legend(['train', 'val'], loc='upper right')
 	plt.show()
 	plt.close()
+	
 	'''
-	#model.load_weights('model_non_aug_valid.h5')
+	model.load_weights('VGG_untrained_unaug.h5')
+	#plot_model(model, to_file='model_VGG_untrained.png')
+
 	plot_model(model, to_file='model_basic.png')
 	evaluation = model.evaluate_generator(test_generator)
 	print(evaluation)
@@ -165,6 +161,6 @@ def main():
 		cv2.imshow("Incorrect", img)
 		print("Correct Label: "+str(incorrect[i][0])+", Predicted Label: "+str(predictions[inc_i[i]]))
 		cv2.waitKey(0)
-	
+
 if __name__ == '__main__':
 	main()

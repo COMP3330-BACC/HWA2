@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import os
 import keras
 import cv2
-
+import time
 
 from keras.models import Sequential
 from keras.layers import Dense, Conv2D, MaxPooling2D, Dropout, Flatten, Activation
@@ -18,8 +18,10 @@ from keras.applications import VGG16
 
 os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
 
-def initialise_model(input_shape, classes):
+def initialise_model(input_shape, classes, base):
 	model = Sequential()
+	model.add(base)
+	model.add(Flatten())
 	model.add(Dense(512, activation='relu', input_dim=1*1*512))
 	model.add(Dropout(0.5))
 	model.add(Dense(10, activation='softmax'))
@@ -33,7 +35,7 @@ def main():
 	width = 48
 	t_samps = 700
 	t_valid = 140
-	epochs = 125
+	epochs = 35
 	batch_size = 20
 	classes = 10
 
@@ -45,6 +47,9 @@ def main():
 	vgg_conv = VGG16(weights='imagenet',
 					  include_top=False,
 					  input_shape=input_shape)
+
+	for layer in vgg_conv.layers[:-4]:
+		layer.trainable = False
 
 	train_dgen = ImageDataGenerator(
 		rescale = 1./2,
@@ -73,7 +78,7 @@ def main():
 		batch_size=batch_size,
 		class_mode='categorical')
 
-	valid_generator = test_dgen.flow_from_directory(
+	valid_generator = test1_dgen.flow_from_directory(
 		valid_data,
 		target_size=(width, height),
 		batch_size=batch_size,
@@ -86,47 +91,25 @@ def main():
 		class_mode='categorical',
 		shuffle=False)
 
-	train_features = np.zeros(shape=(t_samps, 1, 1, 512))
-	train_labels = np.zeros(shape=(t_samps, 10))
-
-	i=0
-	for inputs_batch, labels_batch in train_generator:
-		features_batch = vgg_conv.predict(inputs_batch)
-		train_features[i*batch_size:(i+1)*batch_size] = features_batch
-		train_labels[i * batch_size : (i + 1) * batch_size] = labels_batch
-		i += 1
-		if i*batch_size >= t_samps:
-			break
-
-	train_features = np.reshape(train_features, (t_samps, 1*1*512))
-
-	validation_features = np.zeros(shape=(t_valid, 1, 1, 512))
-	validation_labels = np.zeros(shape=(t_valid, 10))
-
-	i=0
-	for inputs_batch, labels_batch in valid_generator:
-		features_batch = vgg_conv.predict(inputs_batch)
-		validation_features[i*batch_size:(i+1)*batch_size] = features_batch
-		validation_labels[i*batch_size:(i+1)*batch_size] = labels_batch
-		i += 1
-		if i* batch_size >= t_valid:
-			break
-
-	validation_features = np.reshape(validation_features, (t_valid, 1*1*512))
-
-	model = initialise_model(input_shape, classes)
+	model = initialise_model(input_shape, classes, vgg_conv)
 
 	ADAM = Adam(lr=0.0001)
 	model.compile(optimizer=ADAM, loss='categorical_crossentropy', metrics=['acc'])
+	print(model.summary())
+	for layer in vgg_conv.layers:
+		print(layer, layer.trainable)
 
-	'''
-	history = model.fit(train_features,
-						train_labels,
+	t_start = time.time()
+	history = model.fit_generator(train_generator,
+						steps_per_epoch=t_samps//batch_size,
 						epochs=epochs,
-						batch_size=batch_size,
-						validation_data=(validation_features, validation_labels))
+						validation_data=valid_generator,
+						validation_steps=t_valid//batch_size)
+	t_elapsed = time.time() - t_start
 
-	model.save_weights('VGG_pretrained_aug.h5')
+	print("Time: " + str(t_elapsed))
+
+	model.save_weights('VGG_pretrained_unaug.h5')
 
 	# Accuracy and Validation Graphs
 	plt.rcParams['figure.figsize'] = (6,5)
@@ -147,21 +130,40 @@ def main():
 	plt.legend(['train', 'val'], loc='upper right')
 	plt.show()
 	plt.close()
-	'''
 	
-	model.load_weights('VGG_pretrained_aug.h5')
+	#model.load_weights('VGG_pretrained_aug.h5')
 	plot_model(model, to_file='model_VGG.png')
-	fnames = valid_generator.filenames
-	ground_truth = valid_generator.classes
-	label2index = valid_generator.class_indices
 
-	idx2label = dict((v,k) for k,v in label2index.items())
+	plot_model(model, to_file='model_basic.png')
+	evaluation = model.evaluate_generator(test_generator)
+	print(evaluation)
 
-	predictions = model.predict_classes(validation_features)
-	prob = model.predict(validation_features)
-	errors = np.where(predictions != ground_truth)[0]
-	print("Valid no of errors = {}/{}".format(len(errors),t_valid))
+	predictions = model.predict_generator(test_generator)
+	
+	predictions = np.argmax(predictions, axis=-1)
+	label_map = (train_generator.class_indices)
+	label_map = dict((v,k) for k, v in label_map.items())
+	predictions = [label_map[k] for k in predictions]
 
+	incorrect = []
+	inc_i = []
+	count = 0
+	for i in range(len(predictions)):
+		if predictions[i] == test_generator.filenames[i][0]:
+			count = count + 1
+		else:
+			incorrect.append(test_generator.filenames[i])
+			inc_i.append(i)
+
+
+	print("Correct prediction rate: "+str(100*count/len(predictions))+"%")
+	
+	print("Incorrect Predictions: ")
+	for i in range(len(incorrect)):
+		img = cv2.imread(tester_data+"/"+incorrect[i], 0)
+		cv2.imshow("Incorrect", img)
+		print("Correct Label: "+str(incorrect[i][0])+", Predicted Label: "+str(predictions[inc_i[i]]))
+		cv2.waitKey(0)
 
 if __name__ == '__main__':
 	main()
